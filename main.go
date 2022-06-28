@@ -16,12 +16,14 @@ var (
 	configFile string
 	debug      bool
 	s3debug    bool
+	dumpAlias  bool
 )
 
 func main() {
 	flag.StringVar(&configFile, "config", "config.yaml", "Path to config file")
 	flag.BoolVar(&debug, "debug", false, "Debug mode")
 	flag.BoolVar(&s3debug, "s3debug", false, "S3 Debug mode")
+	flag.BoolVar(&dumpAlias, "dump-alias", false, "Dump alias mapping")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -31,6 +33,11 @@ func main() {
 	}
 
 	matcher := NewDomainMatcher(conf)
+	if dumpAlias {
+		matcher.DumpAlias(os.Stdout)
+		return
+	}
+
 	client, err := minio.New(conf.Endpoint, &minio.Options{
 		Creds: credentials.NewChainCredentials([]credentials.Provider{
 			&credentials.EnvAWS{},

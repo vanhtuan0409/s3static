@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -24,7 +26,7 @@ func NewDomainMatcher(conf *Config) *domainmatcher {
 
 func (m *domainmatcher) Match(r *http.Request) (policy BucketPolicy, found bool) {
 	requested := m.extractHost(r)
-	policy, found = m.lookupAliasDomain(requested)
+	policy, found = m.lookupAlias(requested)
 	if found {
 		return
 	}
@@ -35,36 +37,42 @@ func (m *domainmatcher) Match(r *http.Request) (policy BucketPolicy, found bool)
 		if bucket == requested {
 			continue
 		}
-		return m.lookupAliasBucket(bucket)
+		return m.lookupBucket(bucket)
 	}
 
 	return BucketPolicy{}, false
 }
 
+func (m *domainmatcher) DumpAlias(out io.Writer) error {
+	encoder := json.NewEncoder(out)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(m.aliases)
+}
+
 func (m *domainmatcher) buildIndex() {
 	for _, p := range m.conf.Policies {
+		// index buckets
 		m.buckets[p.Bucket] = p
+
+		// index simple domain alias
 		for _, alias := range p.DomainAlias {
 			m.aliases[alias] = p.Bucket
 		}
+
+		// index bucket alias
 		for _, bucketAlias := range p.BucketAlias {
-			m.aliases[bucketAlias] = p.Bucket
+			for _, rootDomain := range m.conf.Domains {
+				domainAlias := fmt.Sprintf("%s.%s", bucketAlias, rootDomain)
+				m.aliases[domainAlias] = p.Bucket
+			}
 		}
 	}
 }
 
-func (m *domainmatcher) lookupAliasDomain(domain string) (BucketPolicy, bool) {
+func (m *domainmatcher) lookupAlias(domain string) (BucketPolicy, bool) {
 	bucket, ok := m.aliases[domain]
 	if !ok {
 		return BucketPolicy{}, false
-	}
-	return m.lookupBucket(bucket)
-}
-
-func (m *domainmatcher) lookupAliasBucket(bucketAlias string) (BucketPolicy, bool) {
-	bucket, ok := m.aliases[bucketAlias]
-	if !ok {
-		return m.lookupBucket(bucketAlias)
 	}
 	return m.lookupBucket(bucket)
 }
