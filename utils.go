@@ -28,9 +28,6 @@ func responseSimple(w http.ResponseWriter, status int, format string, v ...any) 
 
 func handleS3Error(w http.ResponseWriter, err error, passthroughs []string) (s3Err minio.ErrorResponse, passed bool) {
 	s3Err = minio.ToErrorResponse(err)
-	if s3Err.Message == "" {
-		return s3Err, false
-	}
 
 	// allow pass through error
 	for _, code := range passthroughs {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,6 +13,8 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/vanhtuan0409/s3static/assests"
 )
+
+var errTryFiles = errors.New("try files error")
 
 type bucket struct {
 	name   string
@@ -30,37 +33,25 @@ func NewBucket(client *minio.Client, policy BucketPolicy) *bucket {
 func (b *bucket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// try handle index
+	// try exact file path, index file, error file
 	isDir := r.URL.Path == "" || strings.HasSuffix(r.URL.Path, "/")
-	tryIndexPath := func() string {
+	tryFiles := func() []string {
 		if isDir {
-			return normalizeS3Path(r.URL.Path, b.policy.IndexDocument)
+			return []string{normalizeS3Path(r.URL.Path, b.policy.IndexDocument)}
 		}
-		return normalizeS3Path(r.URL.Path)
+		return []string{normalizeS3Path(r.URL.Path)}
 	}()
-
-	// allow NoSuchKey to be handle further
-	// otherwise stop processing (either success or s3 failure)
-	err := b.serveFile(ctx, w, tryIndexPath)
-	if s3Err, passed := handleS3Error(w, err, []string{"NoSuchKey"}); !passed {
-		if s3Err.Code != "" {
-			log.Printf("upstream err. Bucket: %s, path: %s, err: %+v", b.name, tryIndexPath, s3Err)
-		}
-		return
-	}
-
-	// render error document if specified
 	if b.policy.ErrorDocument != "" {
-		errorPath := normalizeS3Path(b.policy.ErrorDocument)
-		err := b.serveFile(ctx, w, errorPath)
-		s3Err, _ := handleS3Error(w, err, []string{})
-		if s3Err.Code != "" {
-			log.Printf("get error document err. Bucket: %s, path: %s, err: %+v", b.name, errorPath, s3Err)
-		}
+		tryFiles = append(tryFiles, normalizeS3Path(b.policy.ErrorDocument))
+	}
+
+	// perform try files
+	err := b.tryFiles(ctx, w, []string{"NoSuchKey"}, tryFiles...)
+	if err == nil || err != errTryFiles {
 		return
 	}
 
-	// render directory listing if allowed
+	// render directory listing if allowed as a fallback mechanism
 	if isDir && b.policy.AllowListing {
 		directoryPath := normalizeS3Path(r.URL.Path)
 		err := b.renderDirectory(ctx, w, directoryPath)
@@ -72,6 +63,24 @@ func (b *bucket) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseSimple(w, http.StatusNotFound, "not found")
+}
+
+func (b *bucket) tryFiles(ctx context.Context, w http.ResponseWriter, passthrough []string, paths ...string) error {
+	for _, path := range paths {
+		err := b.serveFile(ctx, w, path)
+		if err == nil {
+			return nil
+		}
+
+		s3Err, passed := handleS3Error(w, err, passthrough)
+		if passed {
+			continue
+		}
+
+		log.Printf("upstream err. Bucket: %s, path: %s, err: %+v", b.name, path, s3Err)
+		return err
+	}
+	return errTryFiles
 }
 
 func (b *bucket) serveFile(ctx context.Context, w http.ResponseWriter, path string) error {
