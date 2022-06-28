@@ -23,7 +23,7 @@ func NewDomainMatcher(conf *Config) *domainmatcher {
 }
 
 func (m *domainmatcher) Match(r *http.Request) (policy BucketPolicy, found bool) {
-	requested := r.Host
+	requested := m.extractHost(r)
 	policy, found = m.lookupAliasPolicy(requested)
 	if found {
 		return
@@ -56,6 +56,14 @@ func (m *domainmatcher) lookupAliasPolicy(domain string) (BucketPolicy, bool) {
 		return BucketPolicy{}, false
 	}
 	return m.lookupBucket(bucket)
+}
+
+func (m *domainmatcher) extractHost(r *http.Request) string {
+	xfh := r.Header.Get("X-Forwarded-Host")
+	if xfh != "" {
+		return xfh
+	}
+	return r.Host
 }
 
 func (m *domainmatcher) lookupBucket(bucket string) (BucketPolicy, bool) {
