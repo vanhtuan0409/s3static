@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="widh=device-width, initial-scale=1" />
+    <title>S3 Static</title>
+    <style>{{.css}}</style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p>Bucket: {{.bucket}}</p>
+        <p>Path: {{.prefix}}</p>
+      </header>
+      <ul id="files">
+        {{range .entries}}
+        <li>
+          <a href="{{.Href}}" title="{{.Name}}" class="{{.ClassName}}">{{.Name}}</a>
+        </li>
+        {{end}}
+      </ul>
+    </main>
+  </body>
+</html>

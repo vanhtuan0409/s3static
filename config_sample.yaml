@@ -1,0 +1,16 @@
+http_port: 8080
+endpoint: s3.baphouse.internal
+secure: false
+domains:
+  - spa.baphouse.internal
+  - spa.vanhtuan0409.com
+default_index_document: index.html
+policies:
+  - bucket: foo
+    domain_alias:
+      - foo.example.com
+    allow_listing: true
+  - bucket: bar
+    error_document: index.html
+    domain_alias:
+      - bar.example.com
