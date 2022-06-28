@@ -22,6 +22,7 @@ type Config struct {
 
 type BucketPolicy struct {
 	Bucket        string   `yaml:"bucket" json:"bucket"`
+	BucketAlias   []string `yaml:"bucket_alias" json:"bucket_alias"`
 	DomainAlias   []string `yaml:"domain_alias" json:"domain_alias"`
 	IndexDocument string   `yaml:"index_document" json:"index_document"`
 	ErrorDocument string   `yaml:"error_document" json:"error_document"`

@@ -1,5 +1,5 @@
 .PHONY: build
-VERSION=0.1.0-rel1
+VERSION=0.1.0-rel2
 IMAGE=gregistry.vanhtuan0409.com/vanhtuan0409/s3static
 
 clean:

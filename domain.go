@@ -24,7 +24,7 @@ func NewDomainMatcher(conf *Config) *domainmatcher {
 
 func (m *domainmatcher) Match(r *http.Request) (policy BucketPolicy, found bool) {
 	requested := m.extractHost(r)
-	policy, found = m.lookupAliasPolicy(requested)
+	policy, found = m.lookupAliasDomain(requested)
 	if found {
 		return
 	}
@@ -35,7 +35,7 @@ func (m *domainmatcher) Match(r *http.Request) (policy BucketPolicy, found bool)
 		if bucket == requested {
 			continue
 		}
-		return m.lookupBucket(bucket)
+		return m.lookupAliasBucket(bucket)
 	}
 
 	return BucketPolicy{}, false
@@ -47,13 +47,24 @@ func (m *domainmatcher) buildIndex() {
 		for _, alias := range p.DomainAlias {
 			m.aliases[alias] = p.Bucket
 		}
+		for _, bucketAlias := range p.BucketAlias {
+			m.aliases[bucketAlias] = p.Bucket
+		}
 	}
 }
 
-func (m *domainmatcher) lookupAliasPolicy(domain string) (BucketPolicy, bool) {
+func (m *domainmatcher) lookupAliasDomain(domain string) (BucketPolicy, bool) {
 	bucket, ok := m.aliases[domain]
 	if !ok {
 		return BucketPolicy{}, false
+	}
+	return m.lookupBucket(bucket)
+}
+
+func (m *domainmatcher) lookupAliasBucket(bucketAlias string) (BucketPolicy, bool) {
+	bucket, ok := m.aliases[bucketAlias]
+	if !ok {
+		return m.lookupBucket(bucketAlias)
 	}
 	return m.lookupBucket(bucket)
 }
