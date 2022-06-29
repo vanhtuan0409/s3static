@@ -1,0 +1,12 @@
+{
+  "configurations": [
+    {
+      "type": "go",
+      "name": "Debug proxy",
+      "request": "launch",
+      "program": ".",
+      "args": ["-config=config_sample.yaml"],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
